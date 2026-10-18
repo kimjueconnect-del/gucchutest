@@ -1,0 +1,173 @@
+// Gucchu Test — Delhi wholesale marketplace schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Unified auth account for every role in the platform.
+// role: buyer | vendor | transport | sales | admin
+model Account {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("buyer")
+  name         String
+  phone        String?
+  status       String   @default("active") // active | suspended | pending
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  vendorProfile    VendorProfile?
+  transportProfile TransportProfile?
+  salesProfile     SalesProfile?
+  orders           Order[]    @relation("BuyerOrders")
+  reviews          Review[]
+  auditLogs        AuditLog[]
+}
+
+model VendorProfile {
+  id           String   @id @default(cuid())
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId    String   @unique
+  businessName String
+  gstin        String?
+  market       String   @default("Delhi")
+  exclusive    Boolean  @default(false) // personally onboarded = exclusive
+  verified     Boolean  @default(false)
+  rating       Float    @default(4.5)
+  address      String?
+  createdAt    DateTime @default(now())
+
+  products Product[]
+}
+
+model TransportProfile {
+  id            String   @id @default(cuid())
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId     String   @unique
+  companyName   String
+  vehicleTypes  String   @default("[]") // JSON array of strings
+  coverageAreas String   @default("[]") // JSON array of strings
+  exclusive     Boolean  @default(false)
+  verified      Boolean  @default(false)
+  rating        Float    @default(4.5)
+  baseRate      Float    @default(0) // per km base
+  createdAt     DateTime @default(now())
+
+  orders Order[]
+}
+
+model SalesProfile {
+  id            String   @id @default(cuid())
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId     String   @unique
+  region        String   @default("Delhi NCR")
+  commissionPct Float    @default(5.0)
+  totalEarned   Float    @default(0)
+  status        String   @default("active") // active | inactive
+  createdAt     DateTime @default(now())
+
+  orders Order[]
+}
+
+model Category {
+  id    String @id @default(cuid())
+  name  String
+  slug  String @unique
+  icon  String?
+
+  products Product[]
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  vendor      VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  vendorId    String
+  name        String
+  slug        String   @unique
+  description String
+  category    Category @relation(fields: [categoryId], references: [id])
+  categoryId  String
+  categoryName String // denormalized for fast listing
+  images      String   @default("[]") // JSON array of URLs
+  unit        String   @default("piece") // piece | set | box | meter | kg
+  moq         Int      @default(1) // minimum order quantity
+  pricePerUnit Float
+  bulkTiers   String   @default("[]") // JSON: [{minQty, pricePerUnit}]
+  stock       Int      @default(0)
+  specs       String   @default("[]") // JSON: [{label, value}]
+  rating      Float    @default(4.5)
+  featured    Boolean  @default(false)
+  status      String   @default("active") // active | draft | blocked
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reviews Review[]
+  deals   Deal[]
+  cartItems String @default("[]") // not used relationally; cart stored client-side
+}
+
+model Deal {
+  id          String   @id @default(cuid())
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId   String
+  title       String
+  discountPct Float
+  active      Boolean  @default(true)
+  featured    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model Order {
+  id             String   @id @default(cuid())
+  buyer          Account  @relation("BuyerOrders", fields: [buyerId], references: [id])
+  buyerId        String
+  items          String   @default("[]") // JSON snapshot of cart items
+  subtotal       Float
+  discount       Float    @default(0)
+  transportFee   Float    @default(0)
+  total          Float
+  status         String   @default("placed") // placed | assigned | in_transit | delivered | cancelled
+  deliveryAddress String  @default("{}") // JSON
+  transport      TransportProfile? @relation(fields: [transportId], references: [id])
+  transportId    String?
+  salesPerson    SalesProfile? @relation(fields: [salesPersonId], references: [id])
+  salesPersonId  String?
+  salesCommission Float   @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Market {
+  id          String   @id @default(cuid())
+  name        String
+  region      String
+  description String?
+  active      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  buyer     Account  @relation(fields: [buyerId], references: [id])
+  buyerId   String
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  account   Account? @relation(fields: [accountId], references: [id])
+  accountId String?
+  action    String
+  ip        String?
+  detail    String?
+  createdAt DateTime @default(now())
+}

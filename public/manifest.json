@@ -1,0 +1,12 @@
+{
+  "name": "Gucchu Test — Wholesale Marketplace",
+  "short_name": "Gucchu Test",
+  "description": "Organised wholesale from Delhi, delivered pan-India. Verified vendors, bulk pricing, integrated transport.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1f5d4a",
+  "icons": [
+    { "src": "/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
